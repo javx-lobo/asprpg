@@ -1,0 +1,755 @@
+﻿
+@using Microsoft.JSInterop
+@inject IJSRuntime JsRuntime
+@model ASPRPG.Models.BattlefieldModel
+@{
+    ViewData["Title"] = "Battle";
+    Layout = "_Layout";
+}
+
+
+
+<section>
+<div class="dice-section">
+    <div id="player-dice">
+        <button id="d4-button" onclick="rollDice('d4')" disabled><i class="roll fa-duotone fa-dice-d4"></i></button>
+        <button id="d6-button" onclick="rollDice('d6')" disabled><i class="roll fa-duotone fa-dice-d6"></i></button>
+        <button id="d8-button" onclick="rollDice('d8')" disabled><i class="roll fa-duotone fa-dice-d8"></i></button>
+        <button id="d10-button" onclick="rollDice('d10')" disabled><i class="roll fa-duotone fa-dice-d10"></i></button>
+        <button id="d12-button" onclick="rollDice('d12')" disabled><i class="roll fa-duotone fa-dice-d12"></i></button>
+        <button id="d20-button" onclick="rollDice('d20')" disabled><i class="roll fa-duotone fa-dice-d20"></i></button>
+    </div>
+    <div id="player-roll-section">
+        <p>Player Roll: <span id="player-roll-result"></span></p>
+        <p>Consequences: <span id="player-roll-consequences"></span></p>
+    </div>
+    <div id="ai-dice">
+        <p>AI Roll: <span id="ai-roll"></span></p>
+    </div>
+</div>
+
+<div class="battle-grid">
+       <div class="row">
+            @for (int j = 0; j < 7; j++)
+            {
+                @if (j < 7 && Model.Enemies.Count > j)
+                {
+                    <div class="cell" data-row="0" data-col="@j">
+                        <div class="piece ai">
+                            <i class="fa-duotone fa-@Model.Enemies[j].Icon" title="Name: @Model.Enemies[j].Name&#13;Health: @Model.Enemies[j].Health&#13;Attack: @Model.Enemies[j].Attack&#13;Defense: @Model.Enemies[j].Defense"></i>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="cell" data-row="1" data-col="@j"></div>
+                }
+            }
+           
+        </div>     
+    @for (int j = 0; j < 5; j++)
+    {
+        <div class="row">
+            @for (int i = 0; i < 7; i++)
+            {
+              <div class="cell" data-row="@(j+1)" data-col="@i"></div>  
+            }
+            
+        </div>
+    }
+
+    <div class="row">
+        @for (int j = 0; j < 7; j++)
+        {
+            
+
+            @if (j > 1 && j < 5)
+            {
+                <div class="cell" data-row="6" data-col="@j">
+                    <div class="piece player">
+                        <i class="fa-duotone fa-@Model.Characters[j-2].Icon" title="Name: @Model.Characters[j-2].Name&#13;Health: @Model.Characters[j-2].Health&#13;Attack: @Model.Characters[j-2].Attack&#13;Defense: @Model.Characters[j-2].Defense&#13;XP: @Model.Characters[j-2].XP"></i>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="cell" data-row="6" data-col="@j"></div>
+            }
+        }
+
+       
+    </div>
+</div>
+</section>
+
+<script>
+
+    let battleOrder = null;
+    let currentAction = null;
+    let currentMovement = 0;
+    let selectedPiece = null;
+    let playerTurn = null;
+    let playerBPiece = null;
+    let aiBPiece = null;
+
+    const disableDiceBut = (dice) => {
+        let dieButton = "#" + dice + "-button";
+        let diceButtons = [
+            document.querySelector("#d4-button"),
+            document.querySelector("#d6-button"),
+            document.querySelector("#d8-button"),
+            document.querySelector("#d10-button"),
+            document.querySelector("#d12-button"),
+            document.querySelector("#d20-button")
+        ]
+        
+        diceButtons.forEach((dbutton) => {
+            if(dbutton != document.querySelector(dieButton)){
+                dbutton.disabled = true;
+            }else{
+                dbutton.disabled = false;
+            }
+            
+        })
+
+        document.querySelector("#player-roll-consequences").innerHTML = "Roll the die";
+    } 
+
+    async function clearLog () {
+        await new Promise(resolve => setTimeout(resolve, 3500));
+        document.querySelector("#player-roll-result").innerHTML = "";
+        document.querySelector("#player-roll-consequences").innerHTML = "";
+        document.querySelector("#ai-roll").innerHTML = "";
+
+        
+    }
+
+    async function rollDice (dice){
+        let roll, aiRoll;
+
+            
+
+        // Coz & FX
+
+        switch (currentAction){
+            case "determine initiative":
+                // PT rolls
+                roll = Math.floor(Math.random() * eval(dice.slice(1))) + 1;
+                document.querySelector("#player-roll-result").innerHTML = roll;
+                // AIT rolls
+                // MUST find a way to log this before erasing the whole log
+                aiRoll = determineAiRoll(dice);
+                console.log(aiRoll);
+
+                if (roll > aiRoll) {
+                    document.querySelector("#player-roll-consequences").innerHTML = "Player goes first";
+                    battleOrder = 0;
+                    currentAction = "move"
+                    playerTurn = true;
+                    disableDiceBut("d6");
+                    
+
+                } else if (aiRoll > roll) {
+                    document.querySelector("#player-roll-consequences").innerHTML = "AI goes first";
+                    battleOrder = 1;
+                    currentAction = "move";
+                    // The AI moves here, before enabling move for the player.
+                    selectedPiece = null;
+                    disableDiceBut("d0");
+                    setSelectPieceEventListeners();
+                    await aiTurn();
+                    // End of AI turn
+                    playerTurn = true;
+                    disableDiceBut("d6");
+                    
+                } else {
+                    document.querySelector("#player-roll-consequences").innerHTML = "Tie, roll again";
+                }
+            break;
+            case "move":
+                selectedPiece = null;
+                roll = Math.floor(Math.random() * eval(dice.slice(1))) + 1;
+                console.log(roll);
+                currentMovement = document.querySelector("#player-roll-result").innerHTML = roll;
+                document.querySelector("#player-roll-consequences").innerHTML = "Your pieces must move " + roll + " squares.";
+                setSelectPieceEventListeners();
+                // Whenever you click on a piece, the movePiece must be preceded by another method that lets the player select their piece and direction
+                    // This does not happen to AI pieces because AI will follow an algorithm and as such, the movePiece method will be passed concrete direction and piece immediately
+                // After player's movement has ended, and unless battle has begun, AI moves.
+                //if(battleOrder == 0 && currentAction != "battle"){
+                //    aiRoll = setTimeout(function(){determineAiRoll("d6")}, 1000);
+                //}
+            break;
+            case "battle":
+                // BATTLE RULES I: ATTACKING
+                // When a unit engages another unit, it must roll the d20. The result is compared to the required threshold for hitting the defender
+                // Threshold = 1 + (Defender's Defense - Attacker's Attack) * (19 / (Max Attack Stat - Min Attack Stat))
+                // Max Attack Stat & Min Attack Stat represent the highest and lowest Attack stats among all the pieces in the match
+                // Once passed the threshold, the damage is determined with a die roll, which depends on Attack Stat as well
+                // 1-5 ATK = d4, 6-10 ATK = d6, 11-15 ATK = d8, 16-20 ATK = d10, 21-25 ATK = d12, 26+ ATK = d20;
+
+                //// (!!!) UPDATE THE TITLE / DATA OF EACH PIECE EVERYTIME DAMAGE IS DEALT, CREATE A FUNCTION FOR IT
+
+                  roll = Math.floor(Math.random() * eval(dice.slice(1))) + 1;
+                  document.querySelector("#player-roll-result").innerHTML = roll;
+
+                  console.log(roll);
+                  battleRound(roll);
+
+                // BATTLE RULES II: PROTECTING
+                // Pieces may perpetually exchange Defense points for boni
+                // Movement: costs 2 DP per cell, and allows pieces to disengage battle
+                // Damage: costs 4 DP, and allows pieces to roll twice during the next damage roll
+                // HP Recovery: costs X DP, and allows pieces to recover 1dX HP
+                
+                // BATTLE RULES III: ENHANCING
+                // A shared meter is created for all pieces, which fills up with each move made to a cell
+                // The meter Limit = 20 + (number of pieces in play * 2)
+                // Once the meter reaches or surpasses the limit, the side whose turn is may decide to sacrifice their turn
+                // In exchange, they will be able to roll a d6. If they succeed (67% chance) they will be granted a wildcard effect
+                // 1-2: Auto-hit a target without hit threshold check; 3: Stun a target, so it won't move next turn; 4: Healing a piece to 100%; 5-6: Failure
+                // The histologic meter will then reset to 0, and the process will keep repeating in the background
+            break;
+            case "deal damage":
+            //...
+                roll = Math.floor(Math.random() * eval(dice.slice(1))) + 1;
+                document.querySelector("#player-roll-result").innerHTML = roll;
+                pDealDamage(roll);
+            break;
+            }
+    }
+
+    const aiOffensive = async () => {
+        // Determine the threshold for hitting the player
+        let threshold = calculateTHÞ(aiBPiece, playerBPiece);
+
+        // Roll the d20 to hit the player
+        let hitRoll = Math.floor(Math.random() * 20) + 1;
+        document.querySelector("#ai-roll").innerHTML = roll;
+        if (hitRoll >= threshold){
+            document.querySelector("#player-roll-consequences").innerHTML = "AI hits the player! 😵‍💫";
+            // Determine the damage die for the AI's attack
+            let damageDie = calculateDamageDie(aiBPiece.Attack);
+            // Roll the damage die and deal the damage to the player
+            let damageRoll = Math.floor(Math.random() * damageDie) + 1;
+            pDealDamage(false, damageRoll);
+            if (playerBPiece.Health <= 0) {
+                document.querySelector("#player-roll-consequences").innerHTML = "AI killed your piece! ☠️";
+                currentAction = "move";
+                setSelectPieceEventListeners();
+                selectedPiece = null;
+                disableDiceBut("d6");
+                return;
+            }
+            disableDiceBut(calculateDamageDie(playerBPiece.Attack));
+        } else {
+            document.querySelector("#player-roll-consequences").innerHTML = "AI misses the player! 😂";
+        }
+    }
+
+    const pDealDamage = (bool, roll) => {
+        
+        if (bool){
+            document.querySelector("#player-roll-consequences").innerHTML = "Your dealt " + roll + " damage!";
+            aiBPiece.Health -= roll;
+            playerTurn = false;
+            if (aiBPiece.Health <= 0){
+               document.querySelector("#player-roll-consequences").innerHTML = "You killed this AI piece! 💪🏻";
+               currentAction = "move";
+               setSelectPieceEventListeners();
+               selectedPiece = null;
+               disableDiceBut("d6");
+               return;
+            }
+            disableDiceBut("d0");
+           // setSelectPieceEventListeners();
+        }else{
+            document.querySelector("#player-roll-consequences").innerHTML = "AI dealt " + roll + " damage!";
+            playerBPiece.Health -= roll;
+            playerTurn = true;
+            
+           // setSelectPieceEventListeners();
+        }
+        
+    }
+
+    const battleRound = (roll) => {
+        if (battleOrder == 0) {
+            // BEGIN PLAYER TURN
+            /// Calculate To Hit Threshold
+            let threshold = calculateTHÞ(playerBPiece, aiBPiece);
+            if (roll >= threshold){
+                document.querySelector("#player-roll-consequences").innerHTML = "You hit the enemy. Roll for damage";
+                /// Calculate Damage Die
+                disableDiceBut(calculateDamageDie(playerBPiece));
+                currentAction = "deal damage";
+            }else{
+                document.querySelector("#player-roll-consequences").innerHTML = "Your missed the enemy 😒";
+                // Switch to AI turn
+                aiOffensive(); // TBD
+            }
+            //...
+
+
+            
+
+        } else { // DO LATER, AI FIRST CONDITIONAL BRANCH
+            // Calculate To Hit Threshold
+            calculateTHÞ(aiBPiece, playerBPiece);
+        }
+    }
+
+    const calculateDamageDie = (attack) => {
+        if (attack <= 5){
+            return "d4";
+        } if (attack <= 10){
+            return "d6";
+        } if (attack <= 15){
+            return "d8";
+        } if (attack <= 20){
+            return "d10";
+        } if (attack <= 40){
+            return "d12";
+        }
+        return "d20";
+    }
+
+    const getPîeceAttributes = (piece) => {
+        let pieceTitle = piece.getAttribute("title");
+        let pieceAttributes = pieceTitle.split('&#13;');
+        let pieceHealth = parseInt(pieceAttributes[0].split(': ')[1]);
+        let pieceAttack = parseInt(pieceAttributes[1].split(': ')[1]);
+        let pieceDefense = parseInt(pieceAttributes[2].split(': ')[1]);
+        return {
+            Health: pieceHealth,
+            Attack: pieceAttack,
+            Defense: pieceDefense
+        }
+    }
+
+    const calculateTHÞ = (attacker, defender) => {
+        //let attacker = getPieceAttributes(attackerP);
+        //let defender = getPîeceAttributes(defenderP);
+
+        return window.invokeCalculateThreshold(attacker.Attack, defender.Defense);
+    }
+
+    const determineAiRoll = (dice) => {
+        let aiRoll = Math.floor(Math.random() * eval(dice.slice(1))) + 1;
+        document.querySelector("#ai-roll").innerHTML = aiRoll;
+        return aiRoll;
+    }
+
+    const enableInitiative = () => {
+        disableDiceBut("d10");
+        currentAction = "determine initiative";
+    }
+
+    const selectPiece = (event) => {
+        selectedPiece = event.target.closest(".piece");
+        highlightAvailableCells(selectedPiece);
+    }
+
+    const highlightAvailableCells = (selectedPiece) => {
+        document.querySelectorAll(".cell").forEach(cell => {
+            cell.style.backgroundColor = "gold";
+            cell.removeEventListener("click", toCell);
+        });
+
+        let selectedCell = selectedPiece.closest(".cell");
+        let selectedCol = parseInt(selectedCell.dataset.col);
+        let selectedRow = parseInt(selectedCell.dataset.row);
+
+
+        let northCell = document.querySelector(`[data-col="${selectedCol}"][data-row="${selectedRow - 1}"]`);
+        let southCell = document.querySelector(`[data-col="${selectedCol}"][data-row="${selectedRow + 1}"]`);
+        let eastCell = document.querySelector(`[data-col="${selectedCol + 1}"][data-row="${selectedRow}"]`);
+        let westCell = document.querySelector(`[data-col="${selectedCol - 1}"][data-row="${selectedRow}"]`);
+
+        if (northCell && !northCell.querySelector(".piece")){
+            northCell.style.backgroundColor = "chocolate";
+            northCell.addEventListener("click", toCell);
+        }
+        if (southCell && !southCell.querySelector(".piece")){
+            southCell.style.backgroundColor = "chocolate";
+            southCell.addEventListener("click", toCell);
+        }
+        if (eastCell && !eastCell.querySelector(".piece")){
+            eastCell.style.backgroundColor = "chocolate";
+            eastCell.addEventListener("click", toCell);
+        }
+        if (westCell && !westCell.querySelector(".piece")){
+            westCell.style.backgroundColor = "chocolate";
+            westCell.addEventListener("click", toCell);
+        }
+    }
+
+    const toCell = (event) => {
+        let selectedCell = selectedPiece.closest(".cell");
+        let destinationCell = event.target.closest(".cell");
+
+        let selectedCol = parseInt(selectedCell.dataset.col);
+        let selectedRow = parseInt(selectedCell.dataset.row);
+        let destinationCol = parseInt(destinationCell.dataset.col);
+        let destinationRow = parseInt(destinationCell.dataset.row);
+
+        let direction;
+        if(destinationRow === selectedRow - 1){
+            direction = "up";
+        } else if (destinationRow === selectedRow + 1){
+            direction = "down";
+        } else if (destinationCol === selectedCol + 1){
+            direction = "left";
+        } else if (destinationCol === selectedCol - 1) {
+            direction = "right";
+        }
+        
+        let aiPiece = findClosestEnemyPiece(selectedPiece, direction);
+
+        movePiece(direction, aiPiece);
+    }
+
+    const findClosestEnemyPiece = (selectedPiece, direction) => {
+        console.log(playerTurn);
+        let allEnemyPieces;
+        if (playerTurn){
+            allEnemyPieces = document.querySelectorAll(".piece.ai");
+        }
+        else{
+            allEnemyPieces = document.querySelectorAll(".piece.player");
+        }
+        
+        let closestEnemyPiece = null;
+        let closestEnemyDistance = Infinity;
+
+        let selectedCol = parseInt(selectedPiece.closest(".cell").dataset.col);
+        let selectedRow = parseInt(selectedPiece.closest(".cell").dataset.row);
+
+        for(let i = 0; i < allEnemyPieces.length; i++){
+            let enemyCol = parseInt(allEnemyPieces[i].closest(".cell").dataset.col);
+            let enemyRow = parseInt(allEnemyPieces[i].closest(".cell").dataset.row);
+       
+
+        let distance = 0;
+        if (direction === "up"){
+            distance = selectedRow - enemyRow;
+        } else if (direction === "down") {
+            distance = enemyRow - selectedRow;
+        } else if (direction === "left") {
+            distance = enemyCol - selectedCol;
+        } else if (direction === "right") {
+            distance = selectedCol - enemyCol;
+        }
+
+        if (distance < closestEnemyDistance) {
+            closestEnemyDistance = distance;
+            closestEnemyPiece = allEnemyPieces[i];
+        } 
+      }
+
+      return closestEnemyPiece;
+    }
+
+    async function movePiece (direction, aiPiece) {
+        if(currentMovement > 0){
+            // Check if the piece is 1 square away from an enemy piece
+            let distanceToEnemyPiece = checkDistanceToEnemyPiece(aiPiece);
+            if(distanceToEnemyPiece == 1){
+                // End movement phase and begin battle phase
+                playerBPiece = getPîeceAttributes(selectedPiece);
+                aiBPiece = getPîeceAttributes(aiPiece);
+                currentMovement = 0;
+                currentAction = "battle";
+                return;
+            }
+
+            // Move piece one square orthogonally
+            movePieceOrthogonally(direction);
+            currentMovement--;
+            document.querySelector("#player-roll-consequences").innerHTML = "Moves left: " + currentMovement;
+            if(currentMovement === 0){
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                document.querySelector("#player-roll-consequences").innerHTML = "It's AI's turn";
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                playerTurn = false;
+                setSelectPieceEventListeners();
+                disableDiceBut("d0");
+                // The AI moves here, before enabling move for the player.
+                selectedPiece = null;
+                await aiTurn();
+                // End of AI turn
+                playerTurn = true;
+                disableDiceBut("d6");
+                return;
+            }
+        }
+    }
+
+    const checkDistanceToEnemyPiece = (enemyPiece) => {
+        let cells = document.querySelectorAll(".cell");
+        for (let i = 0; i < cells.length; i++){
+            let playerPieceZ = cells[i].querySelector(".piece.player");
+            let aiPieceZ = cells[i].querySelector(".piece.ai");
+        }
+
+        // Calculate the distance to the nearest enemy piece
+        let activePieceCell = selectedPiece.closest(".cell");
+        let enemyPieceCell = enemyPiece.closest(".cell");
+
+        let activePieceRow = parseInt(activePieceCell.dataset.row);
+        let activePieceCol = parseInt(activePieceCell.dataset.col);
+        let enemyPieceRow = parseInt(enemyPieceCell.dataset.row);
+        let enemyPieceCol = parseInt(enemyPieceCell.dataset.col);
+
+        let rowDiff = Math.abs(activePieceRow - enemyPieceRow);
+        let colDiff = Math.abs(activePieceCol - enemyPieceCol);
+
+        if (rowDiff <= 1 && colDiff <= 1){
+            return true; // The active piece is within 1 orthogonal square of an AI piece
+        }
+        return false;
+    }
+
+    const movePieceOrthogonally = (direction) => {
+        let piece = selectedPiece;
+        // Move piece one square orthogonally
+        let currentRow = piece.parentElement.dataset.row;
+        let currentCol = piece.parentElement.dataset.col;
+
+        // Calculate the new position based on the direction
+        let newRow = currentRow;
+        let newCol = currentCol;
+        switch (direction) {
+            case "up":
+                newRow--;
+                break;
+            case "down":
+                newRow++;
+                break;
+            case "left":
+                newCol++;
+                break;
+            case "right":
+                newCol--;
+                break;
+        }
+        // Find the new cell based on the new position
+        let newCell = document.querySelector(
+            `.cell[data-row="${newRow}"][data-col="${newCol}"]`
+        );
+
+        // If the new cell exists, move the piece to the new cell
+        if (newCell){
+            document.querySelectorAll(".cell").forEach(cell => {
+                cell.style.backgroundColor = "gold";
+                cell.removeEventListener("click", toCell);
+            });
+            newCell.appendChild(piece);
+            return true; // The piece was successfully moved
+        }
+
+        return false; // The piece could not be moved
+    }
+
+    window.onload = function() {
+        enableInitiative();
+    }
+
+    const setSelectPieceEventListeners = () => {
+        let pieces = document.querySelectorAll(".piece.player");
+        console.log(playerTurn, currentAction);
+        if(playerTurn && currentAction === "move"){
+            pieces.forEach(piece => {
+                piece.addEventListener("click", selectPiece);
+            });
+        } else {
+            pieces.forEach(piece => {
+                piece.removeEventListener("click", selectPiece);
+            });
+        }
+    };
+
+    async function aiTurn(){
+        clearLog();
+        if (currentAction != "move"){
+            return;
+        }
+
+        // Roll the d6 to determine the maximum amount of cells AI's pieces can move
+        let maxMoves =  determineAiRoll("d6");
+        console.log(maxMoves)
+        document.querySelector("#player-roll-consequences").innerHTML = "AI pieces must move " + maxMoves + " squares.";
+
+        // Get all of AI's pieces
+        let aiPieces = document.querySelectorAll(".piece.ai");
+
+        // Move AI's pieces orthogonally
+            for (let i = 0; i < maxMoves; i++){
+                let randomIndex = Math.floor(Math.random() * aiPieces.length);
+                let aiPiece = aiPieces[randomIndex];
+                selectedPiece = aiPiece;
+                let aiCell = aiPiece.closest(".cell");
+
+                let aiRow = parseInt(aiCell.dataset.row);
+                let aiCol = parseInt(aiCell.dataset.col);
+
+
+                // Check if the north, south, east, or west cell is free
+                let northCell = document.querySelector(`[data-row="${aiRow - 1}"][data-col="${aiCol}"]`);
+                let southCell = document.querySelector(`[data-row="${aiRow + 1}"][data-col="${aiCol}"]`);
+
+                let eastCell = document.querySelector(`[data-row="${aiRow}"][data-col="${aiCol + 1}"]`);
+                let westCell = document.querySelector(`[data-row="${aiRow}"][data-col="${aiCol - 1}"]`);
+
+                let targetCell;
+                // Use a random number to choose the direction randomly
+
+                while(!targetCell){
+                    let random = Math.floor(Math.random() * 4);
+
+                    if (random === 0 && northCell && !northCell.querySelector(".piece")) {
+                        targetCell = northCell;
+                    } else if (random === 1 && southCell && !southCell.querySelector(".piece")){
+                        targetCell = southCell;
+                    } else if (random === 2 && eastCell && !eastCell.querySelector(".piece")){
+                        targetCell = eastCell;
+                    } else if (random === 3 && westCell && !westCell.querySelector(".piece")){
+                        targetCell = westCell;
+                    }
+                }
+         
+
+                console.log("target: ", targetCell);
+
+                // If a free cell is found, move the piece to that cell
+                if (targetCell) {
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    aiPiece.remove();
+                    targetCell.appendChild(aiPiece);
+                    let selectedPiece = aiPiece;
+                    let direction = targetCell.dataset.row > aiRow ?
+                        "down" : targetCell.dataset.row < aiRow ?
+                        "up" : targetCell.dataset.col > aiCol ?
+                        "left" : "right";
+
+                    let playerPiece = findClosestEnemyPiece(selectedPiece, direction);
+                
+
+                    // If a player piece is found, change the currentAction to "battle"
+                    if (checkDistanceToEnemyPiece(playerPiece)) {
+                        maxMoves = 0;
+                        playerBPiece = getPîeceAttributes(playerPiece);
+                        aiBPiece = getPîeceAttributes(selectedPiece);
+                        currentAction = "battle";
+                    }
+
+                }
+            }
+    }
+
+</script>
+
+<style>
+    .battle-grid{
+        width: 60%;
+        margin: 3% auto;
+        display: flex;
+        flex-wrap: wrap;
+        width: 70vmin;
+        height: 70vmin;
+    }
+    .row{
+        display: flex;
+    }
+    .cell{
+        width: 10vmin;
+        height: 10vmin;
+        background: gold;
+        border: 1pt solid silver;
+    }
+    
+    .piece{
+        width: 10vmin;
+        height: 10vmin;
+    }
+
+    .piece i{
+        width: 100%;
+        height: 100%;
+        font-size: 7.6vmin;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dice-section{
+        background: #1e1e1e;
+    }
+
+    #player-dice{
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .roll{
+        border: none;
+        background-color: lightgray;
+        padding: 10px 20px;
+        font-size: 18px;
+        margin: 10px;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .roll:hover{
+        background-color: darkgray;
+        color: white;
+    }
+
+    #ai-dice{
+        width: 30%;
+        text-align: center;
+        font-size: 20px;
+    }
+
+    #initiative-section{
+        width: 30%;
+        text-align: center;
+        font-size: 20px;
+    }
+
+    section{
+        display: grid;
+        grid-template-columns: 3fr 7fr;
+    }
+</style>
+
+@functions {
+    [JSInvokable]
+    public static int CalculateThreshold(int attack, int defense)
+    {
+        if(attack <= 5 && defense <= 5)
+        {
+            return 10;
+        }
+        var ratio = (double)attack / defense;
+        if (ratio <= 0.5)
+        {
+            return 20;
+        }
+        if (ratio >= 2)
+        {
+            return 1;
+        }
+        var threshold = 20 - (int)Math.Floor((ratio - 0.5) / 0.25);
+        return Math.Clamp(threshold, 1, 20);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JsRuntime.InvokeVoidAsync("registerCalculateThreshold", DotNetObjectReference.Create(this));
+        }
+    }
+}

@@ -1,0 +1,203 @@
+﻿@model ASPRPG.Models.Character
+
+@{
+    Layout = "_Layout";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Edit</title>
+    <link rel="stylesheet" href="~/css/Enemy.css" asp-append-version="true" />
+</head>
+<body>
+
+<h4>Character</h4>
+<hr />
+<div class="row">
+    <div class="colo">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="Id" />
+            <div class="form-group" id="nameContainer">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" id="nameInput" class="form-control" />
+                <button type="button" class="btn-primary" id="getNameButton">Randomize</button>
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Health" class="control-label"></label>
+                <input asp-for="Health" id="healthInput" class="form-control" min="@Html.DisplayFor(model => model.Health)"/>
+                <span id="healthCost"></span>
+                <span asp-validation-for="Health" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Attack" class="control-label"></label>
+                    <input asp-for="Attack" id="attackInput" class="form-control" min="@Html.DisplayFor(model => model.Attack)" />
+                <span id="attackCost"></span>
+                <span asp-validation-for="Attack" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Defense" class="control-label"></label>
+                    <input asp-for="Defense" id="defenseInput" class="form-control" min="@Html.DisplayFor(model => model.Defense)" />
+                <span id="defenseCost"></span>
+                <span asp-validation-for="Defense" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                    <label asp-for="Icon" class="control-label"></label>
+                        <div class="input-group" style="position: relative; width: 100%; height: 50px;">
+                            <input asp-for="Icon" id="Icon" class="form-control" />
+                            <span class="input-group-addon">
+                                <i id="iconPreview" class="" style="transform: translate(10px, 10px);"></i>
+                            </span>
+                    </div>
+                <span asp-validation-for="Icon" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                    <label asp-for="XP" class="control-label"></label>
+                <input asp-for="XP" class="text-align: left" readonly /> XP
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" id="saveButton" class="btn btn-primary" />
+            </div>
+                <div>
+                    <a asp-action="Index">Back to List</a>
+                </div>
+        </form>
+    </div>
+</div>
+
+
+
+<script>
+      const getNameButton = document.getElementById("getNameButton");
+      const nameInput = document.getElementById("nameInput");
+
+      const input = document.getElementById("Icon");
+      const preview = document.getElementById("iconPreview");
+
+      input.addEventListener("input", function(){
+      preview.className = `fa-duotone fa-${input.value}`;
+        });
+
+    const healthInput = document.getElementById("healthInput");
+    const attackInput = document.getElementById("attackInput");
+    const defenseInput = document.getElementById("defenseInput");
+    const healthCost = document.getElementById("healthCost");
+    const attackCost = document.getElementById("attackCost");
+    const defenseCost = document.getElementById("defenseCost");
+    const saveButton = document.getElementById("saveButton");
+    let totalXP = @ViewData["XP"];
+    console.log(totalXP)
+
+     const updateHealthCost = () => {
+        const cost = calculateCost(healthInput.value);
+        if(healthInput.value != @ViewData["Health"]){
+            healthCost.innerHTML = `(${cost} XP)`;
+            healthInput.style.color = cost <= totalXP ? "green" : "red";
+        }else{
+            healthCost.innerHTML = '';
+            healthInput.style.color = "black";
+        }
+        
+
+    }
+    const updateAttackCost = () => {
+        const cost = calculateCost(attackInput.value);
+        if(attackInput.value != @ViewData["Attack"]){
+        attackCost.innerHTML = `(${cost} XP)`;
+        attackInput.style.color = cost <= totalXP ? "green" : "red";
+        }else{
+            attackCost.innerHTML = '';
+            attackInput.style.color = "black";
+        }
+    }
+    const updateDefenseCost = () => {
+        if(defenseInput.value != @ViewData["Defense"]){
+        const cost = calculateCost(defenseInput.value);
+        defenseCost.innerHTML = `(${cost} XP)`;
+        defenseInput.style.color = cost <= totalXP ? "green" : "red";
+        }else{
+            defenseCost.innerHTML = '';
+            defenseInput.style.color = "black";
+        }
+    }
+    const updateSaveButtonState = () => {
+        let healthAffordable = healthInput.value == @ViewData["Health"] ? true : calculateCost(healthInput.value) <= totalXP;
+        let attackAffordable = attackInput.value == @ViewData["Attack"] ? true : calculateCost(attackInput.value) <= totalXP;
+        let defenseAffordable = defenseInput.value == @ViewData["Defense"] ? true : calculateCost(defenseInput.value) <= totalXP;
+
+        if (healthAffordable && attackAffordable && defenseAffordable){
+            saveButton.disabled = false;
+            healthInput.style.color = healthInput.value != @ViewData["Health"] ? "green" : "black";
+            attackInput.style.color = attackInput.value != @ViewData["Attack"] ? "green" : "black";
+            defenseInput.style.color = defenseInput.value != @ViewData["Defense"] ? "green" : "black";
+        } else{
+            saveButton.disabled = true;
+            healthInput.style.color = healthInput.value != @ViewData["Health"] ? "red" : "black";
+            attackInput.style.color = attackInput.value != @ViewData["Attack"] ? "red" : "black";;
+            defenseInput.style.color = defenseInput.value != @ViewData["Defense"] ? "red" : "black";
+        }
+    }
+
+    const calculateCost = (stat) => {
+        return Math.round(Math.pow(stat - 6, 2) * 76 + 155);
+    }
+
+    //Update the cost display and the input style when the value changes
+    healthInput.addEventListener("input", updateHealthCost);
+    attackInput.addEventListener("input", updateAttackCost);
+    defenseInput.addEventListener("input", updateDefenseCost);
+
+    //Update the save button state when any of the inputs changes
+    healthInput.addEventListener("input", updateSaveButtonState);
+    attackInput.addEventListener("input", updateSaveButtonState);
+    defenseInput.addEventListener("input", updateSaveButtonState);
+
+   
+
+    saveButton.addEventListener("click", function(){
+        const healthCost = calculateCost(healthInput.value);
+        const attackCost = calculateCost(attackInput.value);
+        const defenseCost = calculateCost(defenseInput.value);
+
+        if (healthCost + attackCost + defenseCost <= totalXP) {
+            totalXP -= healthCost + attackCost + defenseCost;
+            healthInput.value = parseInt(healthInput.value) + healthCost;
+            attackInput.value = parseInt(attackInput.value) + attackCost;
+            defenseInput.value = parseInt(defenseInput.value) + defenseCost;
+            updateSaveButtonState();
+        }
+
+        healthInput.addEventListener("input", updateSaveButtonState);
+        attackInput.addEventListener("input", updateSaveButtonState);
+        defenseInput.addEventListener("input", updateSaveButtonState);
+    });
+
+    // Generate random name
+    getNameButton.addEventListener("click", function () {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "https://www.behindthename.com/api/random.json?key=xa697486151", true);
+
+        xhr.onload = function(){
+            if(this.status === 200){
+                const name = JSON.parse(this.responseText).names[0];
+                nameInput.value = name;
+            }
+            else{
+                console.error("An error occurred while making the API request")
+            }
+        }
+
+        xhr.send();
+    })
+
+</script>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+</body>
+</html>

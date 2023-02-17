@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ASPRPG</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/ASPRPG.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/Index.css" asp-append-version="true" />
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <nav class="navbar">
+              <div class="navbar-logo">
+                  ASPRGP
+              </div>
+              <div class="navbar-burger">
+                  <button onclick="toggleNav()">
+                    🍔
+                  </button>
+              </div>
+              <div class="navbar-menu">
+                  <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Go Home</a></li>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Contact</a></li>
+                   </ul>
+              </div>
+          
+          
+            </nav>
+        </header>
+        <div class="content">
+            <main role="main" class="pb-3">
+                @RenderBody()
+                @await RenderSectionAsync("Scripts", required: false)
+            </main>
+        </div>
+
+        <footer>
+            <div class="menu">
+                &copy; 2023 - ASPRPG - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            </div>
+        </footer>
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/js/site.js" asp-append-version="true"></script>
+        <script>
+            function toggleNav(){
+                let menu = document.querySelector(".navbar-menu");
+                menu.classList.toggle("is-active");
+            }
+        </script>
+    </div>
+</body>
+</html>

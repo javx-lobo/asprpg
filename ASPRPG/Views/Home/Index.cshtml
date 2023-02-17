@@ -1,0 +1,23 @@
+﻿@{
+    ViewData["Title"] = "Main Menu";
+}
+
+<div class="main-menu">
+    <h1 class="title">A.S.P.R.P.G.</h1>
+    <p class="subtitle">Main Menu</p>
+    <div class="options">
+        <a class="option battle" asp-controller="Battle" asp-action="Battle" disable>
+            <i class="fa-duotone fa-hand-fist"></i>
+            <span>Battle</span>
+        </a>
+       
+        <a class="option characters" asp-controller="Characters" asp-action="">
+            <i class="fa-duotone fa-users"></i>
+            <span>Characters</span>
+        </a>
+        <a class="option enemies" asp-controller="Enemies" asp-action="">
+            <i class="fa-duotone fa-skull"></i>
+            <span>Enemies</span>
+        </a>
+    </div>
+</div>

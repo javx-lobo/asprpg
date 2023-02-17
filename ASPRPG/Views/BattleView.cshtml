@@ -1,0 +1,47 @@
+﻿@page
+@model ASPRPG.Views.BattleViewModel
+@{
+    ViewData["Title"] = "Battle";
+    //FALTA USING?¿
+}
+
+<div id="battle-container">
+    <div id="character-container">
+        <h2>Character</h2>
+        <p>Name: @Model.Character.Name</p>
+        <p>Health: @Model.Character.Health </p>
+        <p>Attack: @Model.Character.Attack</p>
+        <p>Defense: @Model.Character.Defense </p>
+    </div>
+    <div id="enemy-container">
+        <h2>Enemy</h2>
+        <p>Name: @Model.Enemy.Name</p>
+        <p>Health: @Model.Enemy.Health</p>
+        <p>Attack: @Model.Enemy.Attack</p>
+        <p>Defense: @Model.Enemy.Defense</p>
+    </div>
+
+    <div id="battle-grid">
+        <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+        </div>
+        <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+        </div>
+        <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+        </div>
+        <div id="battle-menu">
+            <button>Attack</button>
+            <button>Defend</button>
+            <button>Item</button>
+            <button>Run</button>
+        </div>
+    </div>
+</div>

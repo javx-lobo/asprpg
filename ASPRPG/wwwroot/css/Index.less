@@ -1,0 +1,87 @@
+﻿//Import FontAwesome
+@import url('https://site-assets.fontawesome.com/releases/v6.2.1/css/all.css');
+//Define variables
+@main-color: #3c3c3c;
+@text-color: #fff;
+@link-color: #333;
+@link-bg: #fff;
+@link-pz: 20px 40px;
+@link-mb: 20px;
+@link-br: 10px;
+@link-fs: 18px;
+@link-transition: all 0.2s ease-in-out;
+@media-bp: 600px;
+
+.main-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: @main-color;
+    color: @text-color;
+    height: 83vh;
+    padding: 40px 20px;
+}
+
+.title{
+    font-size: 36px;
+    font-weight: bold;
+    margin-bottom: 40px;
+}
+
+.options{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 40px;
+}
+
+.option{
+    display: flex;
+    align-items: center;
+    background-color: @link-bg;
+    color: @link-color;
+    padding: @link-pz;
+    border-radius: @link-br;
+    margin-bottom: @link-mb;
+    text-decoration: none;
+    font-size: @link-fs;
+    transition: @link-transition;
+}
+
+.option i{
+    margin-right: 10px;
+}
+
+.option:hover{
+    background: @main-color;
+    color: @text-color;
+    cursor: pointer;
+}
+
+a {
+    text-decoration: none;
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+}
+
+a:hover {
+    color: #0056b3;
+    border-bottom-color: #0056b3;
+}
+
+a:active {
+    color: #0041ad;
+    border-bottom-color: #0041ad;
+}
+
+
+//Media query to change layout on larger screens
+@media (min-width: @media-bp){
+    .options{
+        flex-direction: row;
+    }
+
+    .option{
+        margin-right: 20px;
+    }
+}
