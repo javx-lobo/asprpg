@@ -12,8 +12,13 @@
 
         public string? Icon { get; set; }
 
-        public void TakeDamage(int damage) 
+        public void TakeDamage(int damage)
         {
+            if (damage <= 0)
+            {
+                return;
+            }
+
             Health -= damage;
         }
 
